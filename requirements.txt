@@ -1,0 +1,3 @@
+onshape-client
+pyserial
+tk
