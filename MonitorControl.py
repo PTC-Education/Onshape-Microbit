@@ -10,19 +10,22 @@ def serial_write(string):
         # print(ser.read(ser.in_waiting).decode())
         response = ser.read(ser.in_waiting).decode()
     result = []
-    for s in response.split():
-        num = ''
-        for x in s:
-            # print(x)
-            if x.isdigit() or x == "-":
-                num += x
-        if len(num) > 0:
-            try:
-                result.append(int(num))
-            except:
-                pass
-    if result == []:
-        print(response)
+    try:
+        for s in response.split():
+            num = ''
+            for x in s:
+                # print(x)
+                if x.isdigit() or x == "-":
+                    num += x
+            if len(num) > 0:
+                try:
+                    result.append(int(num))
+                except:
+                    pass
+        if result == []:
+            print(response)
+    except:
+        pass
     return result
 
 try:
