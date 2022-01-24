@@ -2,15 +2,10 @@ from os import access
 import time
 import math
 import serial
+import serial.tools.list_ports
 import sys
 import glob
 import json
-try:
-    import tkinter as tk
-    from tkinter import filedialog
-except:
-    print('tkinter not installed - cannot import apikeys from file with gui')
-
 from onshape_client.client import Client
 from onshape_client.onshape_url import OnshapeElement
 
@@ -20,7 +15,11 @@ from onshape_client.onshape_url import OnshapeElement
 ##
 ##
 def serial_ports():
-    if sys.platform.startswith('win'):
+    if sys.platform.startswith('win'):  
+        allPorts =  serial.tools.list_ports.comports(True)
+        for x in allPorts:
+            if x.manufacturer == "Microsoft":
+                return x[0]
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
