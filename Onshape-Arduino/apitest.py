@@ -1,6 +1,6 @@
 import json 
-import requests
-import serial
+import requests # type: ignore
+import serial # type: ignore
 from math import radians
 from time import sleep
 
@@ -19,9 +19,6 @@ def potToRads(pot, min, max):
     range = abs(min - max)
     degs = min + pot/1024*range
     return radians(degs)
-
-# connect to serial port (the arduino IDE gave me the address)
-ser = serial.Serial("/dev/cu.usbmodem11301", 9600)
 
 # get API keys
 with open("APIKey.json") as f:
@@ -54,34 +51,42 @@ for mate in response["mateValues"]:
     elif mate['mateName'] == "Arm_Mate":
         armMate = mate
 
-basePos = 0
+# connect to serial port (the arduino IDE gave me the address)
+ser = serial.Serial("/dev/cu.usbmodem11301", 115200, timeout=0.1)
 
-# This loop shouldn't tax the API too much.
-# Pretty sure requests.post() is a blocking call. 
-# Meaning it will wait until the response arrives before the loop repeats.
+oldBase = 0
+oldShoulder = 0
+oldArm = 0
+
 while True:
-    # read the potentiometer values from arduino serial data and split into array
-    data = ser.readline()
-    if data:
-        s = data.decode('utf-8')
-        if s.endswith("\r\n"):
-            s = s[:-2]
-        arr = s.split("|")
-    # update the json
-    baseMate["rotationZ"] = potToRads(int(arr[0]), 0, 360)
-    shoulderMate["rotationZ"] = potToRads(int(arr[1]), -90, 90)
-    armMate["rotationZ"] = potToRads(int(arr[2]), -90, 90)
-    # post the updated json back to the matevalues API endpoint
-    response = requests.post(
-        "https://cad.onshape.com/api/assemblies/d/{}/w/{}/e/{}/matevalues".format(
-            DID, WID, EID
-        ), 
-        auth=(API_ACCESS, API_SECRET), 
-        headers={
-            "Accept": "application/json;charset=UTF-8; qs=0.09", 
-            "Content-Type": "application/json"
-        },
-        json = {"mateValues":[baseMate, shoulderMate, armMate]}
-    ) 
-    response = response.json()
-    print("running...")
+    latest = None
+    while ser.in_waiting:
+        latest = ser.readline().decode().strip()
+    if latest:
+        arr = latest.split("|")
+        basePos = potToRads(int(arr[0]), 0, 360)
+        shoulderPos = potToRads(int(arr[1]), -90, 90)
+        armPos = potToRads(int(arr[2]), -90, 90)
+        
+        # if there is a reasonable change, send new values via API
+        if abs(oldBase - basePos) > 0.1 or abs(oldShoulder - shoulderPos) > 0.1 or abs(oldArm - armPos) > 0.1:
+            baseMate["rotationZ"] = basePos
+            shoulderMate["rotationZ"] = shoulderPos
+            armMate["rotationZ"] = armPos
+            print(str(basePos) + " | " + str(shoulderPos) + " | " + str(armPos))
+            # post the updated json back to the matevalues API endpoint
+            response = requests.post(
+                "https://cad.onshape.com/api/assemblies/d/{}/w/{}/e/{}/matevalues".format(
+                    DID, WID, EID
+                ), 
+                auth=(API_ACCESS, API_SECRET), 
+                headers={
+                    "Accept": "application/json;charset=UTF-8; qs=0.09", 
+                    "Content-Type": "application/json"
+                },
+                json = {"mateValues":[baseMate, shoulderMate, armMate]}
+            ) 
+    
+        oldBase = basePos
+        oldShoulder = shoulderPos
+        oldArm = armPos
