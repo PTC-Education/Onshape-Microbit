@@ -6,11 +6,13 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 int potval1 = 0;
 int potval2 = 0;
 int potval3 = 0;
+int LEDpin = 8;
 
 void setup() {
   Serial.begin(115200);
   lcd.init();
   lcd.backlight();
+  pinMode(LEDpin, OUTPUT);
 }
 
 void loop() {
@@ -28,5 +30,16 @@ void loop() {
 
   String s = String(potval1) + "|" + String(potval2) + "|" + String(potval3);
   Serial.println(s);
+
+  // Check for incoming data
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    if (command == "LEDON") {
+      digitalWrite(LEDpin, HIGH);
+    } else if (command == "LEDOFF") {
+      digitalWrite(LEDpin, LOW);
+    }
+  }
+
   delay(100);
 }
